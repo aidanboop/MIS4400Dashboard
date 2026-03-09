@@ -3,4 +3,3 @@ Dashboard repo for the class MIS4400. This GitHub repository is used to store th
 
 ### Tech we will be using:
 - Python 3.14
-- Gradio 6.5.1
