@@ -49,6 +49,7 @@ python app.py
 ### Data Export Files (pipe-delimited `||` text exports from SQL Server)
 - `Accounts.txt` — Full export of `[Final].[Accounts]`; contains P&L accounts (IDs 10–480) and Balance Sheet accounts (IDs 10010–10350)
 - `AccountCalc.txt` — Full export of `[Final].[AccountCalc]`; maps derived account IDs (e.g. 50=Cost of Sales, 60=Gross Profit, 440=Store Operating Income) to their source account components with multipliers (+1 or -1)
+- `MainData.txt` — Full export of `[Final].[MainData]`; ~145 MB; columns: FranchiseeID, StoreID, FiscalYearID, CalendarID, AccountID, Amount — central fact table containing all financial account amounts per store/period
 - `Ownership.txt` — Full export of `[Final].[Ownership]` joined with franchisee/store names; ~647 KB; columns: OrgID, OrgName, FranID, FranchiseeName, StoreID, StoreName, StartDate, EndDate
 - `POSSales.txt` — Full export of `[Final].[POSSales]`; ~2.5 MB; columns: StoreID, FiscalYearId, CalendarID, Sales
 - `Stores[1].txt` — Full export of `[Final].[Stores]`; ~621 KB; columns: StoreID, StoreName, StoreAddress, City, StProv, Country, Status, SiteType
