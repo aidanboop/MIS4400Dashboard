@@ -1,0 +1,12 @@
+# Credentials — never commit
+.env
+
+# Trained model artifacts
+model_artifacts/
+
+# Python
+__pycache__/
+*.py[cod]
+*.joblib
+venv/
+.venv/
