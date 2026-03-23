@@ -15,13 +15,60 @@ MIS4400Dashboard is a class project building a **Python backend** for predictive
 
 ## Development Commands
 
+### Full Flow (first-time setup)
+
 ```bash
-# Install dependencies
+# 1. Create and activate a virtual environment (optional but recommended)
+python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
+
+# 2. Install dependencies
 pip install -r requirements.txt
 
-# Run the API server
+# 3. Configure the database connection
+#    Option A — set an ODBC DSN named "MIS4400" in Windows ODBC Data Source Administrator
+#    Option B — override via environment variable:
+export ODBC_DSN="MIS4400"
+#    Option C — full connection string override:
+export ODBC_CONNECTION_STRING="DRIVER={ODBC Driver 18 for SQL Server};SERVER=...;DATABASE=...;UID=...;PWD=..."
+
+# 4. Train the ML models (requires live DB connection; writes to model_artifacts/)
+python -m models.trainer
+
+# 5. Start the Flask API server (default: http://localhost:5000)
 python app.py
 ```
+
+### Re-training models
+
+```bash
+# Re-run whenever new financial data is available in the DB
+python -m models.trainer
+# Artifacts saved to: model_artifacts/sales_forecaster.joblib
+#                     model_artifacts/risk_classifier.joblib
+```
+
+### Running the API server
+
+```bash
+# Development (debug mode + auto-reload)
+FLASK_DEBUG=true python app.py
+
+# Custom port
+FLASK_PORT=8080 python app.py
+```
+
+### API Endpoints (base: http://localhost:5000/api)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | Liveness check |
+| GET | `/stores` | List all stores |
+| GET | `/franchisees` | List all franchisees |
+| GET | `/financials?store_id=&fiscal_year=[&calendar_id=]` | Raw P&L/BS amounts |
+| GET | `/predictions/sales?store_id=&fiscal_year=` | Sales forecast |
+| GET | `/predictions/risk?store_id=&fiscal_year=` | At-risk score (0/1 + probability) |
+| GET | `/flags?store_id=&fiscal_year=` | Rule-based financial flags |
 
 ## Repository File Descriptions
 
