@@ -58,6 +58,33 @@ FLASK_DEBUG=true python app.py
 FLASK_PORT=8080 python app.py
 ```
 
+### CLI Report Runner (no frontend required)
+
+`run.py` produces a full financial flags + ML predictions report directly in the terminal — useful for testing without starting the Flask server.
+
+```bash
+# First time (train models then report on all data)
+python run.py --train
+
+# Report on all data (models already trained)
+python run.py
+
+# Filter by year and/or store
+python run.py --year 2023
+python run.py --store 101
+python run.py --year 2023 --store 101
+
+# Skip ML predictions — rule-based flags only
+python run.py --flags-only
+
+# Save results to CSV
+python run.py --output results.csv
+```
+
+Output sections:
+- **FINANCIAL FLAGS REPORT** — per-store/period flag counts and severity details
+- **ML PREDICTIONS SUMMARY** — average predicted sales, max risk probability, at-risk period count per store/year; stores with risk ≥ 60 % are marked `<-- HIGH RISK`
+
 ### API Endpoints (base: http://localhost:5000/api)
 
 | Method | Path | Description |
@@ -83,6 +110,7 @@ FLASK_PORT=8080 python app.py
 - `models/predictor.py` — Loads trained model artifacts and runs inference for a given store/period
 - `flags/rules.py` — Threshold-based financial flagging rules (e.g. low gross profit %, declining cash flow, high labor cost %) that produce structured flag objects
 - `api/routes.py` — Flask Blueprint defining REST endpoints consumed by the React frontend
+- `run.py` — standalone CLI runner; loads data from DB, builds feature matrix, evaluates rule-based flags, runs ML predictions, and prints a formatted report (or saves to CSV via `--output`); supports `--year`, `--store`, `--flags-only`, and `--train` flags
 
 ### SQL DDL Scripts (table definitions)
 - `Accounts.sql` — DDL for `[Final].[Accounts]`: AccountID, AccountName, StatementType (PL/BS), IsCalculated flag, DivisorAccountID, DisplayOrder
