@@ -24,6 +24,7 @@ from db.queries import (
     get_franchisees,
     get_main_data,
     get_pos_sales,
+    get_account_calc,
 )
 from models.features import build_feature_matrix
 from models.predictor import Predictor
@@ -79,7 +80,8 @@ def _build_features_for_request():
     if main_data.empty:
         return None, (jsonify({"error": "No data found for the given store/year"}), 404)
 
-    features = build_feature_matrix(main_data, pos_sales)
+    account_calc = get_account_calc()
+    features = build_feature_matrix(main_data, pos_sales, account_calc=account_calc)
     return features, None
 
 

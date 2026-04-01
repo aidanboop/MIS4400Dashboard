@@ -105,7 +105,7 @@ Output sections:
 - `requirements.txt` — Python package dependencies
 - `db/connection.py` — pyodbc connection factory; provides `get_connection()` for use across the app
 - `db/queries.py` — SQL query functions that pull data from the `[Final]` schema (MainData, POSSales, Accounts, etc.)
-- `models/features.py` — Feature engineering: pivots raw account amounts into ML-ready feature vectors, computes ratios using `DivisorAccountID`, handles `AccountCalc` derived metrics
+- `models/features.py` — Feature engineering: pivots raw account amounts into ML-ready feature vectors; computes derived (calculated) accounts from `AccountCalc` rules since accounts like Gross Profit (60), Labor (110), Profit After Controllable (240), and Restaurant Cash Flow (450) are not stored in `MainData`; computes `acct_<id>_pct` ratio columns using Account 10 (Product Sales) as denominator; adds period-over-period lag/change columns
 - `models/trainer.py` — Trains scikit-learn models (sales forecasting, financial health classification) and persists them to disk
 - `models/predictor.py` — Loads trained model artifacts and runs inference for a given store/period
 - `flags/rules.py` — Threshold-based financial flagging rules (e.g. low gross profit %, declining cash flow, high labor cost %) that produce structured flag objects

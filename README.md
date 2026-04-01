@@ -126,7 +126,7 @@ The `models/` package handles two ML tasks:
 - **Sales Forecasting** — predicts future period sales for a given store using historical `MainData` and `POSSales` records as time-series input features.
 - **Financial Health Classification** — classifies a store's financial health (e.g. healthy / at-risk / distressed) based on engineered ratios derived from P&L accounts such as gross profit margin, labor cost %, and cash flow trend.
 
-Feature engineering (`features.py`) pivots raw account-level rows into wide feature vectors per store/period, computes ratio metrics using the `DivisorAccountID` relationship, and resolves calculated accounts via the `AccountCalc` table. Trained model artifacts are persisted to disk by `trainer.py` and loaded at inference time by `predictor.py`.
+Feature engineering (`features.py`) pivots raw account-level rows into wide feature vectors per store/period, derives calculated accounts (Gross Profit, Labor, etc.) from `AccountCalc` rules — since these are not stored in `MainData` — and computes ratio metrics using Account 10 (Product Sales) as the denominator. Trained model artifacts are persisted to disk by `trainer.py` and loaded at inference time by `predictor.py`.
 
 ### Financial Flagging
 The `flags/rules.py` module applies threshold-based rules against computed financial metrics to surface actionable warnings. Example flags include:

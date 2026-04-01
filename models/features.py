@@ -29,9 +29,36 @@ ACCT_STORE_OPERATING_INCOME = 440
 ACCT_RESTAURANT_CASH_FLOW = 450
 
 
+def _apply_account_calc(features: pd.DataFrame, account_calc: pd.DataFrame) -> pd.DataFrame:
+    """
+    Compute derived account columns from AccountCalc rules and add them to the
+    feature matrix.  Only adds columns that don't already exist.
+
+    Derived value = sum(source_amount * multiplier) for each (DestAccountID, SeqID) row.
+    Missing source columns are treated as 0.
+    """
+    for dest_id in account_calc["DestAccountID"].unique():
+        dest_col = f"acct_{dest_id}"
+        if dest_col in features.columns:
+            continue  # already present (raw account with same ID)
+
+        subset = account_calc[account_calc["DestAccountID"] == dest_id].sort_values("SeqID")
+        result = pd.Series(0.0, index=features.index)
+        for _, rule_row in subset.iterrows():
+            src_col = f"acct_{int(rule_row['SourceAccountID'])}"
+            mult = float(rule_row["Multiplier"])
+            if src_col in features.columns:
+                result = result + features[src_col].fillna(0) * mult
+
+        features[dest_col] = result
+
+    return features
+
+
 def build_feature_matrix(
     main_data: pd.DataFrame,
     pos_sales: pd.DataFrame,
+    account_calc: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     """
     Build a per-period feature matrix from raw query results.
@@ -44,6 +71,11 @@ def build_feature_matrix(
     pos_sales : DataFrame
         Result of db.queries.get_pos_sales() — columns:
         StoreID, FiscalYearID, CalendarID, Sales
+    account_calc : DataFrame or None
+        Result of db.queries.get_account_calc() — columns:
+        DestAccountID, SeqID, SourceAccountID, Multiplier.
+        When provided, derived accounts (Gross Profit, Labor, etc.) are
+        computed from their raw source accounts so that ratio flags work.
 
     Returns
     -------
@@ -64,6 +96,12 @@ def build_feature_matrix(
 
     # -- 2. Merge POS Sales ---------------------------------------------------
     features = pivot.merge(pos_sales, on=["StoreID", "FiscalYearID", "CalendarID"], how="left")
+
+    # -- 2.5. Compute derived accounts (Gross Profit, Labor, etc.) ------------
+    # Calculated accounts (IsCalculated=1) are NOT stored in MainData; they
+    # must be derived from their source accounts via AccountCalc rules.
+    if account_calc is not None and not account_calc.empty:
+        features = _apply_account_calc(features, account_calc)
 
     # -- 3. Ratio features (pct of Product Sales) ----------------------------
     rev_col = f"acct_{ACCT_PRODUCT_SALES}"

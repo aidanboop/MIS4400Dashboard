@@ -24,7 +24,7 @@ import pandas as pd
 
 import config
 from db.connection import get_connection
-from db.queries import get_main_data, get_pos_sales, get_stores, get_franchisees
+from db.queries import get_main_data, get_pos_sales, get_stores, get_franchisees, get_account_calc
 from models.features import build_feature_matrix
 from models.trainer import train_all, SALES_MODEL_FILE, RISK_MODEL_FILE
 from flags.rules import compute_flags
@@ -48,9 +48,15 @@ def _load_data(year: int | None, store_id: int | None) -> tuple[pd.DataFrame, pd
         pos_sales = get_pos_sales(fiscal_year=year, store_id=store_id, conn=conn)
         stores_df = get_stores(conn=conn)
         franchisees_df = get_franchisees(conn=conn)
+        account_calc = get_account_calc(conn=conn)
+
+    # Filter out management/non-store sites (negative StoreIDs)
+    main_data = main_data[main_data["StoreID"] > 0]
+    pos_sales = pos_sales[pos_sales["StoreID"] > 0]
+
     print(f"  MainData rows:  {len(main_data):,}")
     print(f"  POSSales rows:  {len(pos_sales):,}")
-    return main_data, pos_sales, stores_df, franchisees_df
+    return main_data, pos_sales, stores_df, franchisees_df, account_calc
 
 
 # ---------------------------------------------------------------------------
@@ -190,7 +196,7 @@ def main() -> None:
         print()
 
     # -- Load data ------------------------------------------------------------
-    main_data, pos_sales, stores_df, franchisees_df = _load_data(args.year, args.store)
+    main_data, pos_sales, stores_df, franchisees_df, account_calc = _load_data(args.year, args.store)
 
     if main_data.empty:
         print("No data returned for the given filters. Check your --year / --store arguments.")
@@ -198,7 +204,7 @@ def main() -> None:
 
     # -- Build features -------------------------------------------------------
     print("Building feature matrix...")
-    features = build_feature_matrix(main_data, pos_sales)
+    features = build_feature_matrix(main_data, pos_sales, account_calc=account_calc)
     print(f"  Feature matrix shape: {features.shape}")
 
     # -- Rule-based flags -----------------------------------------------------
@@ -225,6 +231,10 @@ def main() -> None:
                 on=["StoreID", "FiscalYearID", "CalendarID"],
                 how="left",
             )
+        # Ensure ID columns are written as integers, not floats
+        for col in ["StoreID", "FiscalYearID", "CalendarID"]:
+            if col in out_df.columns:
+                out_df[col] = out_df[col].astype("Int64")
         out_df.to_csv(args.output, index=False)
         print(f"Results saved to: {args.output}")
 

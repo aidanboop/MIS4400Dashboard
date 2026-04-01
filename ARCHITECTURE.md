@@ -102,24 +102,35 @@ This is the data transformation layer that converts raw, long-format account row
 **Input:**
 - `main_data` — long-format DataFrame: one row per `(StoreID, FiscalYearID, CalendarID, AccountID)` with an `Amount`
 - `pos_sales` — one row per `(StoreID, FiscalYearID, CalendarID)` with a `Sales` figure
+- `account_calc` — AccountCalc rules DataFrame (optional; from `get_account_calc()`); required for derived accounts and ratio flags to work
 
 **Steps:**
 
 **Step 1 — Pivot `MainData` wide**
-Each `AccountID` becomes its own column (`acct_<id>`). Values are summed per `(StoreID, FiscalYearID, CalendarID)`.
+Each `AccountID` becomes its own column (`acct_<id>`). Values are summed per `(StoreID, FiscalYearID, CalendarID)`. Only **raw** (non-calculated) account IDs appear at this stage — e.g. `acct_10` (Product Sales), `acct_20` (Food), `acct_70` (Management Labor), etc.
 
 ```
 Before:  StoreID | CalendarID | AccountID | Amount
          101     | 01         | 10        | 50000
-         101     | 01         | 60        | 28000
-         101     | 01         | 110       | 15000
+         101     | 01         | 20        | 12000
+         101     | 01         | 70        |  8000
 
-After:   StoreID | CalendarID | acct_10 | acct_60 | acct_110
-         101     | 01         | 50000   | 28000   | 15000
+After:   StoreID | CalendarID | acct_10 | acct_20 | acct_70
+         101     | 01         | 50000   | 12000   |  8000
 ```
 
 **Step 2 — Merge POS Sales**
 The `Sales` column from `POSSales` is joined onto the pivoted table on `(StoreID, FiscalYearID, CalendarID)`.
+
+**Step 2.5 — Compute derived (calculated) accounts**
+Accounts marked `IsCalculated=1` in `[Final].[Accounts]` (e.g. Gross Profit=60, Labor=110, Profit After Controllable=240, Restaurant Cash Flow=450) are **not stored in `MainData`** — they must be derived by applying the `AccountCalc` rules: `dest_value = Σ (source_amount × multiplier)` for each `(DestAccountID, SourceAccountID)` pair.
+
+```
+AccountCalc says: acct_60 = acct_10 × +1 + acct_20 × -1 + acct_30 × -1 + acct_40 × -1
+                  acct_110 = acct_70 × +1 + acct_80 × +1 + acct_90 × +1 + acct_100 × +1
+```
+
+Without this step, the `acct_60_pct`, `acct_110_pct`, `acct_240_pct`, and `acct_450_pct` ratio columns would be missing, causing the corresponding flag rules (`check_gross_profit`, `check_labor`, `check_profit_after_controllable`, `check_cash_flow`) to silently never fire.
 
 **Step 3 — Compute ratio features**
 For each key P&L account, a `_pct` ratio column is computed as `acct_<id> / acct_10` (Product Sales as denominator). This normalizes values across stores of different sizes.
@@ -271,7 +282,7 @@ GET /api/flags?store_id=101&fiscal_year=2024
 }
 ```
 
-The internal helper `_build_features_for_request()` is shared across the prediction and flag endpoints — it parses `store_id` and `fiscal_year` from query params, queries the DB, and runs `build_feature_matrix()` before returning the feature DataFrame to the route handler.
+The internal helper `_build_features_for_request()` is shared across the prediction and flag endpoints — it parses `store_id` and `fiscal_year` from query params, queries `MainData`, `POSSales`, and `AccountCalc` from the DB, then runs `build_feature_matrix()` (passing `account_calc`) before returning the feature DataFrame to the route handler.
 
 ---
 
@@ -283,7 +294,9 @@ Request: GET /api/predictions/sales?store_id=101&fiscal_year=2024
 1. api/routes.py       — parse store_id=101, fiscal_year=2024
 2. db/queries.py       — SELECT from [Final].[MainData] WHERE StoreID=101 AND FiscalYearID=2024
                        — SELECT from [Final].[POSSales] WHERE StoreID=101 AND FiscalYearID=2024
-3. models/features.py  — pivot MainData wide, merge Sales, compute ratios + change cols
+                       — SELECT from [Final].[AccountCalc] (all rows — calc rules)
+3. models/features.py  — pivot MainData wide, compute derived accounts via AccountCalc,
+                          merge Sales, compute ratio + change cols
 4. models/predictor.py — load sales_forecaster.joblib (once), run predict()
 5. api/routes.py       — serialize results to JSON list
 6. Frontend            — receives predicted_sales per period
