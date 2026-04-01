@@ -59,6 +59,9 @@ def train_sales_forecaster(features: pd.DataFrame) -> Pipeline:
     X, y = get_training_target(features, target_col="Sales")
     X = X.select_dtypes(include="number")  # drop any remaining non-numeric
 
+    mask = y.notna()
+    X, y = X[mask], y[mask]
+
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
     model = _make_numeric_pipeline(
