@@ -46,6 +46,13 @@ class Predictor:
 
     # --------------------------------------------------------------- predict
 
+    @staticmethod
+    def _prepare_X(X: pd.DataFrame) -> pd.DataFrame:
+        """Drop ID/target columns and keep only numeric features, matching training."""
+        drop_cols = ["StoreID", "FiscalYearID", "CalendarID", "Sales"]
+        X = X.drop(columns=[c for c in drop_cols if c in X.columns])
+        return X.select_dtypes(include="number")
+
     def predict_sales(self, X: pd.DataFrame) -> list[float]:
         """
         Predict next-period Sales for each row in X.
@@ -61,8 +68,7 @@ class Predictor:
         List of predicted Sales amounts (one per input row).
         """
         model = self._load_sales_model()
-        X_num = X.select_dtypes(include="number")
-        return model.predict(X_num).tolist()
+        return model.predict(self._prepare_X(X)).tolist()
 
     def predict_risk(self, X: pd.DataFrame) -> list[int]:
         """
@@ -78,11 +84,9 @@ class Predictor:
         List of integer labels (0 or 1).
         """
         model = self._load_risk_model()
-        X_num = X.select_dtypes(include="number")
-        return model.predict(X_num).tolist()
+        return model.predict(self._prepare_X(X)).tolist()
 
     def predict_risk_proba(self, X: pd.DataFrame) -> list[float]:
         """Return probability of at-risk (class 1) for each row."""
         model = self._load_risk_model()
-        X_num = X.select_dtypes(include="number")
-        return model.predict_proba(X_num)[:, 1].tolist()
+        return model.predict_proba(self._prepare_X(X))[:, 1].tolist()
